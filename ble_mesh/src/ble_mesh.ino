@@ -13,6 +13,14 @@ SerialLogHandler logHandler;
 void dispayModeAtIndex(int mode, int index);
 uint32_t wheel(byte WheelPos);
 unsigned int hexToUnsignedInt(String hex);
+void checkBattery(BleCharacteristic batteryLevelCharacteristic);
+
+// UUID for battery service
+BleUuid batteryServiceUUID = BleUuid(0x180F);
+BleUuid batteryCharUUID = BleUuid(0x2A19);
+
+// Batt char
+BleCharacteristic batteryLevelCharacteristic;
 
 const char *serviceUuid = "52FBD5CA-8C9E-4C84-B3F7-E674BB439420";
 const char *mode = "52FBD5CE-8C9B-4C84-B3F7-E674BB439420";
@@ -25,10 +33,10 @@ int DELAY_MS = 10;
 int RAINBOW_INDEX = 0;
 int RANK = 0;
 
-int startTime = 0;
-int lastPublishedCommands = 0;
-int lastPublishedRank = 0;
-int lastDecidedOnLeader = 0;
+system_tick_t startTime = 0;
+system_tick_t lastPublishedCommands = 0;
+system_tick_t lastPublishedRank = 0;
+system_tick_t lastDecidedOnLeader = 0;
 bool leaderIsAlive = false;
 
 // Set the mesh BLE service
@@ -46,7 +54,13 @@ BleAdvertisingData advData;
 // publish rank every second
 void publishRank()
 {
-  if (millis() - lastPublishedRank > 1000)
+  // Reset if overflow
+  if (millis() < lastPublishedRank)
+  {
+    lastPublishedRank = millis();
+  }
+
+  if (millis() > (lastPublishedRank + 1000))
   {
     Mesh.publish("rank", String::format("%d", RANK));
     lastPublishedRank = millis();
@@ -56,7 +70,13 @@ void publishRank()
 // decide on leader every 2 seconds
 void checkForLeader()
 {
-  if (millis() - lastDecidedOnLeader > 2000)
+  // Reset if overflow
+  if (millis() < lastDecidedOnLeader)
+  {
+    lastDecidedOnLeader = millis();
+  }
+
+  if (millis() > (lastDecidedOnLeader + 2000))
   {
     if (!leaderIsAlive)
     {
@@ -80,8 +100,13 @@ void publishCommands(bool force = false)
   {
     return;
   }
+  // Reset if overflow
+  if (millis() < lastPublishedCommands)
+  {
+    lastPublishedCommands = millis();
+  }
 
-  if (force || millis() - lastPublishedCommands > 5000)
+  if (force || (millis() > (lastPublishedCommands + 5000)))
   {
     Mesh.publish("delayMs", String::format("%d", DELAY_MS));
     Mesh.publish("mode", String::format("%d", MODE));
@@ -202,8 +227,13 @@ void setup()
   BLE.addCharacteristic(leaderCharacteristic);
   leaderCharacteristic.setValue(IS_LEADER);
 
+  batteryLevelCharacteristic = BleCharacteristic("bat", BleCharacteristicProperty::NOTIFY, batteryCharUUID, batteryServiceUUID);
+  BLE.addCharacteristic(batteryLevelCharacteristic);
+
   // Add the RGB LED service
   advData.appendServiceUUID(bleMeshService);
+  // Add the battery service
+  advData.appendServiceUUID(batteryServiceUUID);
   advData.appendLocalName("BLE Mesh Node");
 }
 
@@ -222,4 +252,5 @@ void loop()
   publishCommands();
   setRGBColor();
   dispayModeAtIndex(MODE, RAINBOW_INDEX);
+  checkBattery(batteryLevelCharacteristic);
 }

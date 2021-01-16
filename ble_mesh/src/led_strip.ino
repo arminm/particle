@@ -30,9 +30,12 @@ void dot(int index)
 {
   for (int i = 0; i < strip.numPixels(); i++)
   {
-    if (i == index) {
+    if (i == index)
+    {
       strip.setPixelColor(i, wheel(index & 255));
-    } else {
+    }
+    else
+    {
       strip.setPixelColor(i, 0);
     }
   }
@@ -43,9 +46,12 @@ void zebra(int index)
 {
   for (int i = 0; i < strip.numPixels(); i++)
   {
-    if ((i + index) % 5 == 0) {
+    if ((i + index) % 5 == 0)
+    {
       strip.setPixelColor(i, wheel(index & 255));
-    } else {
+    }
+    else
+    {
       strip.setPixelColor(i, 0);
     }
   }
