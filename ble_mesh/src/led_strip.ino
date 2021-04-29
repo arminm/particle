@@ -2,8 +2,8 @@
 #include <neopixel.h>
 
 // IMPORTANT: Set pixel COUNT, PIN and TYPE
-// cane has 154, 1m strips have 144
-#define PIXEL_COUNT 154
+// cane has 150, 1m strips have 144
+#define PIXEL_COUNT 150
 #define PIXEL_PIN D13
 #define PIXEL_TYPE WS2812B
 
