@@ -33,14 +33,20 @@ const char *delayMs = "52FBD5CE-8C9C-4C84-B3F7-E674BB439422";
 const char *rank = "52FBD5CE-8C9D-4C84-B3F7-E674BB439423";
 const char *brightness = "52FBD5CF-8C9D-4C84-B3F7-E674BB439424";
 const char *ledOn = "52FBD5CG-8C9D-4C84-B3F7-E674BB439425";
+const char *wifiOn = "52FBD5CH-8C9D-4C84-B3F7-E674BB439426";
+const char *wifiSSID = "52FBD5CI-8C9D-4C84-B3F7-E674BB439427";
+const char *wifiPassword = "52FBD5CJ-8C9D-4C84-B3F7-E674BB439428";
 
 bool IS_LEADER = false;
 int MODE = 1;
 int DELAY_MS = 100;
 int MODE_INDEX = 0;
 int RANK = 0;
-int BRIGHTNESS = 50;
+int BRIGHTNESS = 10;
 int LED_ON = 1;
+int WIFI_ON = 0;
+char WIFI_SSID[50];
+char WIFI_PASS[50];
 
 system_tick_t startTime = 0;
 system_tick_t lastPublishedCommands = 0;
@@ -57,6 +63,9 @@ BleCharacteristic delayMsCharacteristic("delayMs", BleCharacteristicProperty::WR
 BleCharacteristic rankCharacteristic("rank", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, rank, serviceUuid, onDataReceived, (void *)rank);
 BleCharacteristic brightnessCharacteristic("brightness", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, brightness, serviceUuid, onDataReceived, (void *)brightness);
 BleCharacteristic ledOnCharacteristic("ledOn", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, ledOn, serviceUuid, onDataReceived, (void *)ledOn);
+BleCharacteristic wifiOnCharacteristic("wifiOn", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, wifiOn, serviceUuid, onDataReceived, (void *)wifiOn);
+BleCharacteristic wifiSSIDCharacteristic("wifiSSID", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, wifiSSID, serviceUuid, onDataReceived, (void *)wifiSSID);
+BleCharacteristic wifiPasswordCharacteristic("wifiPassword", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, wifiPassword, serviceUuid, onDataReceived, (void *)wifiPassword);
 BleCharacteristic leaderCharacteristic("isLeader", BleCharacteristicProperty::READ, NULL);
 
 // Advertising data
@@ -224,6 +233,26 @@ static void onDataReceived(const uint8_t *data, size_t len, const BlePeerDevice 
   {
     LED_ON = data[0];
   }
+  else if (context == wifiOn)
+  {
+    WIFI_ON = data[0];
+  }
+  else if (context == wifiSSID)
+  {
+    for (size_t i = 0; i < len; i++)
+    {
+      WIFI_SSID[i] = static_cast<char>(data[i]);
+    }
+  }
+  else if (context == wifiPassword)
+  {
+    for (size_t i = 0; i < len; i++)
+    {
+      WIFI_PASS[i] = static_cast<char>(data[i]);
+    }
+    WiFi.clearCredentials();
+    WiFi.setCredentials(WIFI_SSID, WIFI_PASS);
+  }
   publishCommands(true);
 }
 
@@ -235,20 +264,15 @@ void setup()
 
   RGB.control(true);
   Mesh.on();
-  // WiFi.off();
 
   Mesh.connect();
   waitUntil(Mesh.ready);
-  Log.info("Mesh is ready!");
   const char *localIP = Mesh.localIP().toString().c_str();
-  Log.info("localIP: %s", localIP);
   char subArr[4];
   const int length = strlen(localIP);
-  Log.info("length: %d", length);
   const int startIndex = length - 4;
   for (int i = startIndex; i < length; i++)
   {
-    Log.info("localIP[%d]: %c", i, localIP[i]);
     subArr[i - startIndex] = localIP[i];
   }
   RANK = strtoul(subArr, 0, 16);
@@ -273,6 +297,12 @@ void setup()
   brightnessCharacteristic.setValue(BRIGHTNESS);
   BLE.addCharacteristic(ledOnCharacteristic);
   ledOnCharacteristic.setValue(LED_ON);
+  BLE.addCharacteristic(wifiOnCharacteristic);
+  wifiOnCharacteristic.setValue(WIFI_ON);
+  BLE.addCharacteristic(wifiSSIDCharacteristic);
+  wifiSSIDCharacteristic.setValue(WIFI_SSID);
+  BLE.addCharacteristic(wifiPasswordCharacteristic);
+  wifiPasswordCharacteristic.setValue(WIFI_PASS);
   BLE.addCharacteristic(leaderCharacteristic);
   leaderCharacteristic.setValue(IS_LEADER);
 
@@ -294,6 +324,33 @@ void debugLogs()
   Log.info("MODE: %d, DELAY_MS: %d, RANK: %d, BRIGHTNESS: %d, LED_ON: %d, IS_LEADER: %d", MODE, DELAY_MS, RANK, BRIGHTNESS, LED_ON, IS_LEADER);
 }
 
+void setWiFi(int on)
+{
+  if (on == 1 && !WiFi.ready())
+  {
+    RGB.control(false);
+    WiFi.on();
+    WiFi.connect(WIFI_CONNECT_SKIP_LISTEN);
+    waitUntil(WiFi.ready);
+    if (WiFi.ready())
+    {
+      Particle.connect();
+    }
+    else
+    {
+      WiFi.off();
+      RGB.control(true);
+      WIFI_ON = 0;
+    }
+  }
+  else if (on == 0 && WiFi.ready())
+  {
+    Particle.disconnect();
+    WiFi.off();
+    RGB.control(true);
+  }
+}
+
 bool previousLedOn = true;
 
 // loop() runs over and over again, as quickly as it can execute.
@@ -306,16 +363,10 @@ void loop()
   checkForLeader();
   publishCommands();
   setRGBColor(MODE_INDEX);
+  setWiFi(WIFI_ON);
   if (LED_ON == 1)
   {
-    // if (readBattery() < 10)
-    // {
-    //   dispayModeAtIndex(lowPowerMode(), MODE_INDEX);
-    // }
-    // else
-    // {
     dispayModeAtIndex(MODE, MODE_INDEX);
-    // }
     previousLedOn = true;
   }
   else

@@ -107,19 +107,19 @@ void sparkle(int index)
 
 void lowPower(int index, float battery)
 {
-  int max = int(battery / 25) + 1;
+  int step = 20;
+  int bat = int(battery / step);
+  int max = 100 / step;
+  int offset = 5;
   for (int i = 0; i < PIXEL_COUNT; i++)
   {
-    if (i < max)
+    if (i > offset && i < offset + bat + 1)
     {
-      if ((i + index) % max == 0)
-      {
-        strip.setPixelColor(i, strip.Color(50, 0, 0));
-      }
-      else
-      {
-        strip.setPixelColor(i, 0);
-      }
+      strip.setPixelColor(i, strip.Color(50, 0, 0));
+    }
+    else if (bat == max && i == offset + bat + 1)
+    {
+      strip.setPixelColor(i, strip.Color(0, 50, 0));
     }
     else
     {
