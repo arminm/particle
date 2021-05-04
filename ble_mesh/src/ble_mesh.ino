@@ -36,6 +36,7 @@ const char *ledOn = "52FBD5CG-8C9D-4C84-B3F7-E674BB439425";
 const char *wifiOn = "52FBD5CH-8C9D-4C84-B3F7-E674BB439426";
 const char *wifiSSID = "52FBD5CI-8C9D-4C84-B3F7-E674BB439427";
 const char *wifiPassword = "52FBD5CJ-8C9D-4C84-B3F7-E674BB439428";
+const char *meshOn = "52FBD5CK-8C9D-4C84-B3F7-E674BB439429";
 
 bool IS_LEADER = false;
 int MODE = 1;
@@ -44,6 +45,7 @@ int MODE_INDEX = 0;
 int RANK = 0;
 int BRIGHTNESS = 10;
 int LED_ON = 1;
+int MESH_ON = 0;
 int WIFI_ON = 0;
 char WIFI_SSID[50];
 char WIFI_PASS[50];
@@ -62,6 +64,7 @@ BleCharacteristic modeCharacteristic("mode", BleCharacteristicProperty::WRITE_WO
 BleCharacteristic delayMsCharacteristic("delayMs", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, delayMs, serviceUuid, onDataReceived, (void *)delayMs);
 BleCharacteristic rankCharacteristic("rank", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, rank, serviceUuid, onDataReceived, (void *)rank);
 BleCharacteristic brightnessCharacteristic("brightness", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, brightness, serviceUuid, onDataReceived, (void *)brightness);
+BleCharacteristic meshOnCharacteristic("meshOn", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, meshOn, serviceUuid, onDataReceived, (void *)meshOn);
 BleCharacteristic ledOnCharacteristic("ledOn", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, ledOn, serviceUuid, onDataReceived, (void *)ledOn);
 BleCharacteristic wifiOnCharacteristic("wifiOn", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, wifiOn, serviceUuid, onDataReceived, (void *)wifiOn);
 BleCharacteristic wifiSSIDCharacteristic("wifiSSID", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, wifiSSID, serviceUuid, onDataReceived, (void *)wifiSSID);
@@ -229,6 +232,10 @@ static void onDataReceived(const uint8_t *data, size_t len, const BlePeerDevice 
     BRIGHTNESS = data[0];
     setBrightness(BRIGHTNESS);
   }
+  else if (context == meshOn)
+  {
+    MESH_ON = data[0];
+  }
   else if (context == ledOn)
   {
     LED_ON = data[0];
@@ -256,35 +263,42 @@ static void onDataReceived(const uint8_t *data, size_t len, const BlePeerDevice 
   publishCommands(true);
 }
 
-// setup() runs once, when the device is first turned on.
-void setup()
+void setMesh(int on)
 {
-  startTime = millis();
-  lastDecidedOnLeader = millis();
-
-  RGB.control(true);
-  Mesh.on();
-
-  Mesh.connect();
-  waitUntil(Mesh.ready);
-  const char *localIP = Mesh.localIP().toString().c_str();
-  char subArr[4];
-  const int length = strlen(localIP);
-  const int startIndex = length - 4;
-  for (int i = startIndex; i < length; i++)
+  if (on == 1 && !Mesh.ready() && !Mesh.connecting())
   {
-    subArr[i - startIndex] = localIP[i];
-  }
-  RANK = strtoul(subArr, 0, 16);
+    Mesh.on();
+    Mesh.connect();
+    waitUntil(Mesh.ready);
+    const char *localIP = Mesh.localIP().toString().c_str();
+    char subArr[4];
+    const int length = strlen(localIP);
+    const int startIndex = length - 4;
+    for (int i = startIndex; i < length; i++)
+    {
+      subArr[i - startIndex] = localIP[i];
+    }
+    RANK = strtoul(subArr, 0, 16);
 
-  // Set the subscription for Mesh updates
-  int error = Mesh.subscribe("rank", meshHandler);
-  if (error != SYSTEM_ERROR_NONE)
-  {
-    // TODO: have a function for subscription with error checking
-    Log.error("Failed to subscribe with error code: %d", error);
+    // Set the subscription for Mesh updates
+    int error = Mesh.subscribe("rank", meshHandler);
+    if (error != SYSTEM_ERROR_NONE)
+    {
+      // TODO: have a function for subscription with error checking
+      Log.error("Failed to subscribe with error code: %d", error);
+    }
+    Mesh.subscribe("state", meshHandler);
   }
-  Mesh.subscribe("state", meshHandler);
+  else if (on == 0 && Mesh.ready())
+  {
+    Mesh.disconnect();
+    Mesh.off();
+  }
+}
+
+void setupBLE()
+{
+  BLE.on();
 
   // Add the characteristics
   BLE.addCharacteristic(modeCharacteristic);
@@ -295,6 +309,8 @@ void setup()
   rankCharacteristic.setValue(RANK);
   BLE.addCharacteristic(brightnessCharacteristic);
   brightnessCharacteristic.setValue(BRIGHTNESS);
+  BLE.addCharacteristic(meshOnCharacteristic);
+  meshOnCharacteristic.setValue(MESH_ON);
   BLE.addCharacteristic(ledOnCharacteristic);
   ledOnCharacteristic.setValue(LED_ON);
   BLE.addCharacteristic(wifiOnCharacteristic);
@@ -315,6 +331,20 @@ void setup()
   // Add the battery service
   advData.appendServiceUUID(batteryServiceUUID);
 
+  // Start advertising!
+  BLE.advertise(&advData);
+}
+
+// setup() runs once, when the device is first turned on.
+void setup()
+{
+  startTime = millis();
+  lastDecidedOnLeader = millis();
+
+  RGB.control(true);
+
+  setupBLE();
+
   // Set LED Strip brightness
   setBrightness(BRIGHTNESS);
 }
@@ -326,7 +356,7 @@ void debugLogs()
 
 void setWiFi(int on)
 {
-  if (on == 1 && !WiFi.ready())
+  if (on == 1 && !WiFi.ready() && !WiFi.connecting())
   {
     RGB.control(false);
     WiFi.on();
@@ -359,11 +389,15 @@ void loop()
   // rainbow run
   delay(DELAY_MS);
   MODE_INDEX++;
-  publishRank();
-  checkForLeader();
-  publishCommands();
+  if (Mesh.ready())
+  {
+    publishRank();
+    checkForLeader();
+    publishCommands();
+  }
   setRGBColor(MODE_INDEX);
   setWiFi(WIFI_ON);
+  setMesh(MESH_ON);
   if (LED_ON == 1)
   {
     dispayModeAtIndex(MODE, MODE_INDEX);
