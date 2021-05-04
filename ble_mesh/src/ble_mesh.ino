@@ -11,6 +11,16 @@ SYSTEM_THREAD(ENABLED);
 SYSTEM_MODE(MANUAL);
 SerialLogHandler logHandler;
 
+// Persisted Object
+const unsigned int MAX_NAME_LEN = 72;
+struct PersistedObject
+{
+  uint8_t version;
+  char name[MAX_NAME_LEN];
+};
+PersistedObject DEFAULT_PROPS = {0, "Light Cane"};
+PersistedObject props;
+
 // declare other functions
 void dispayModeAtIndex(int mode, int index);
 uint32_t wheel(byte WheelPos);
@@ -37,6 +47,7 @@ const char *wifiOn = "52FBD5CH-8C9D-4C84-B3F7-E674BB439426";
 const char *wifiSSID = "52FBD5CI-8C9D-4C84-B3F7-E674BB439427";
 const char *wifiPassword = "52FBD5CJ-8C9D-4C84-B3F7-E674BB439428";
 const char *meshOn = "52FBD5CK-8C9D-4C84-B3F7-E674BB439429";
+const char *caneName = "52FBD5CL-8C9D-4C84-B3F7-E674BB439430";
 
 bool IS_LEADER = false;
 int MODE = 1;
@@ -62,14 +73,15 @@ BleUuid bleMeshService(serviceUuid);
 // Set up characteristics
 BleCharacteristic modeCharacteristic("mode", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, mode, serviceUuid, onDataReceived, (void *)mode);
 BleCharacteristic delayMsCharacteristic("delayMs", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, delayMs, serviceUuid, onDataReceived, (void *)delayMs);
-BleCharacteristic rankCharacteristic("rank", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, rank, serviceUuid, onDataReceived, (void *)rank);
 BleCharacteristic brightnessCharacteristic("brightness", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, brightness, serviceUuid, onDataReceived, (void *)brightness);
 BleCharacteristic meshOnCharacteristic("meshOn", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, meshOn, serviceUuid, onDataReceived, (void *)meshOn);
 BleCharacteristic ledOnCharacteristic("ledOn", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, ledOn, serviceUuid, onDataReceived, (void *)ledOn);
+BleCharacteristic caneNameCharacteristic("caneName", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, caneName, serviceUuid, onDataReceived, (void *)caneName);
 BleCharacteristic wifiOnCharacteristic("wifiOn", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, wifiOn, serviceUuid, onDataReceived, (void *)wifiOn);
 BleCharacteristic wifiSSIDCharacteristic("wifiSSID", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, wifiSSID, serviceUuid, onDataReceived, (void *)wifiSSID);
 BleCharacteristic wifiPasswordCharacteristic("wifiPassword", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, wifiPassword, serviceUuid, onDataReceived, (void *)wifiPassword);
 BleCharacteristic leaderCharacteristic("isLeader", BleCharacteristicProperty::READ, NULL);
+BleCharacteristic rankCharacteristic("rank", BleCharacteristicProperty::WRITE_WO_RSP | BleCharacteristicProperty::READ, rank, serviceUuid, onDataReceived, (void *)rank);
 
 // Advertising data
 BleAdvertisingData advData;
@@ -260,7 +272,22 @@ static void onDataReceived(const uint8_t *data, size_t len, const BlePeerDevice 
     WiFi.clearCredentials();
     WiFi.setCredentials(WIFI_SSID, WIFI_PASS);
   }
-  publishCommands(true);
+  else if (context == caneName)
+  {
+    if (len <= MAX_NAME_LEN)
+    {
+      for (size_t i = 0; i < len; i++)
+      {
+        props.name[i] = static_cast<char>(data[i]);
+      }
+      EEPROM.put(0, props);
+    }
+  }
+
+  if (Mesh.ready())
+  {
+    publishCommands(true);
+  }
 }
 
 void setMesh(int on)
@@ -296,7 +323,7 @@ void setMesh(int on)
   }
 }
 
-void setupBLE()
+void setupBLE(char *name)
 {
   BLE.on();
 
@@ -319,13 +346,14 @@ void setupBLE()
   wifiSSIDCharacteristic.setValue(WIFI_SSID);
   BLE.addCharacteristic(wifiPasswordCharacteristic);
   wifiPasswordCharacteristic.setValue(WIFI_PASS);
+  BLE.addCharacteristic(caneNameCharacteristic);
   BLE.addCharacteristic(leaderCharacteristic);
   leaderCharacteristic.setValue(IS_LEADER);
 
-  batteryLevelCharacteristic = BleCharacteristic("bat", BleCharacteristicProperty::NOTIFY, batteryCharUUID, batteryServiceUUID);
+  batteryLevelCharacteristic = BleCharacteristic("bat", BleCharacteristicProperty::NOTIFY | BleCharacteristicProperty::READ, batteryCharUUID, batteryServiceUUID);
   BLE.addCharacteristic(batteryLevelCharacteristic);
 
-  advData.appendLocalName(String::format("Light Cane - %d", RANK));
+  advData.appendLocalName(name);
   // Add the RGB LED service
   advData.appendServiceUUID(bleMeshService);
   // Add the battery service
@@ -343,7 +371,15 @@ void setup()
 
   RGB.control(true);
 
-  setupBLE();
+  // load persisted props
+  EEPROM.get(0, props); // 0 is the address (up to 4096 bytes on Argon)
+  if (props.version != 0)
+  {
+    // EEPROM was empty -> initialize props
+    PersistedObject defaultObj = {0, "Light Cane"};
+    props = defaultObj;
+  }
+  setupBLE(props.name);
 
   // Set LED Strip brightness
   setBrightness(BRIGHTNESS);
