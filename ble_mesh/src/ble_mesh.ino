@@ -27,7 +27,7 @@ unsigned int hexToUnsignedInt(String hex);
 void checkBattery(BleCharacteristic batteryLevelCharacteristic);
 void setBrightness(int b);
 float readBattery();
-int lowPowerMode();
+int chargingMode();
 bool isCharging();
 
 // UUID for battery service
@@ -51,7 +51,8 @@ const char *caneName = "52FBD5CL-8C9D-4C84-B3F7-E674BB439430";
 
 bool IS_LEADER = false;
 int MODE = 2; // rainbow
-int DELAY_MS = 25;
+bool AUTO_MODE = true;
+int DELAY_MS = 20;
 unsigned int MODE_INDEX = 0;
 int RANK = 0;
 int BRIGHTNESS = 10;
@@ -151,18 +152,6 @@ void publishCommands(bool force = false)
   }
 }
 
-void setRGBColor(int b)
-{
-  if (IS_LEADER)
-  {
-    RGB.color(b & 255, 0, 0);
-  }
-  else
-  {
-    RGB.color(0, 0, b & 255);
-  }
-}
-
 void handleMeshState(const int index, const int value)
 {
   switch (index)
@@ -230,6 +219,7 @@ static void onDataReceived(const uint8_t *data, size_t len, const BlePeerDevice 
   {
     MODE = data[0];
     MODE_INDEX = 0;
+    AUTO_MODE = false;
   }
   else if (context == delayMs)
   {
@@ -323,9 +313,37 @@ void setMesh(int on)
   }
 }
 
+void setWiFi(int on)
+{
+  if (on == 1 && !WiFi.ready() && !WiFi.connecting())
+  {
+    RGB.control(false);
+    WiFi.on();
+    WiFi.connect(WIFI_CONNECT_SKIP_LISTEN);
+    waitUntil(WiFi.ready);
+    if (WiFi.ready())
+    {
+      Particle.connect();
+    }
+    else
+    {
+      WiFi.off();
+      RGB.control(true);
+      WIFI_ON = 0;
+    }
+  }
+  else if (on == 0 && WiFi.ready())
+  {
+    Particle.disconnect();
+    WiFi.off();
+    RGB.control(true);
+  }
+}
+
 void setupBLE(char *name)
 {
   BLE.on();
+  BLE.setDeviceName(name);
 
   // Add the characteristics
   BLE.addCharacteristic(modeCharacteristic);
@@ -363,6 +381,23 @@ void setupBLE(char *name)
   BLE.advertise(&advData);
 }
 
+void setRGBColor(int b)
+{
+  if (IS_LEADER)
+  {
+    RGB.color(b & 255, 0, 0);
+  }
+  else
+  {
+    RGB.color(0, 0, b & 255);
+  }
+}
+
+void debugLogs()
+{
+  Log.info("MODE: %d, DELAY_MS: %d, RANK: %d, BRIGHTNESS: %d, LED_ON: %d, IS_LEADER: %d", MODE, DELAY_MS, RANK, BRIGHTNESS, LED_ON, IS_LEADER);
+}
+
 // setup() runs once, when the device is first turned on.
 void setup()
 {
@@ -388,47 +423,19 @@ void setup()
   setBrightness(BRIGHTNESS);
 }
 
-void debugLogs()
-{
-  Log.info("MODE: %d, DELAY_MS: %d, RANK: %d, BRIGHTNESS: %d, LED_ON: %d, IS_LEADER: %d", MODE, DELAY_MS, RANK, BRIGHTNESS, LED_ON, IS_LEADER);
-}
-
-void setWiFi(int on)
-{
-  if (on == 1 && !WiFi.ready() && !WiFi.connecting())
-  {
-    RGB.control(false);
-    WiFi.on();
-    WiFi.connect(WIFI_CONNECT_SKIP_LISTEN);
-    waitUntil(WiFi.ready);
-    if (WiFi.ready())
-    {
-      Particle.connect();
-    }
-    else
-    {
-      WiFi.off();
-      RGB.control(true);
-      WIFI_ON = 0;
-    }
-  }
-  else if (on == 0 && WiFi.ready())
-  {
-    Particle.disconnect();
-    WiFi.off();
-    RGB.control(true);
-  }
-}
-
 bool previousLedOn = true;
 
 // loop() runs over and over again, as quickly as it can execute.
 void loop()
 {
-  // rainbow run
   delay(DELAY_MS);
+  Log.info("MODE_INDEX: %d", MODE_INDEX);
+  if (millis() < (startTime + 1000))
+  {
+    return; // not ready yet
+  }
   MODE_INDEX++;
-  if (Mesh.ready())
+  if (MESH_ON && Mesh.ready())
   {
     publishRank();
     checkForLeader();
@@ -437,15 +444,23 @@ void loop()
   setRGBColor(MODE_INDEX);
   setWiFi(WIFI_ON);
   setMesh(MESH_ON);
+  unsigned int mode = MODE;
+  if (AUTO_MODE)
+  {
+    static unsigned int offset = 2;
+    static unsigned int modes = 5;
+    static unsigned int delay = 30000; // 30 seconds
+    mode = (((millis() - startTime) / delay) % modes) + offset;
+  }
   if (LED_ON == 1)
   {
     if (isCharging())
     {
-      dispayModeAtIndex(lowPowerMode(), MODE_INDEX);
+      dispayModeAtIndex(chargingMode(), MODE_INDEX);
     }
     else
     {
-      dispayModeAtIndex(MODE, MODE_INDEX);
+      dispayModeAtIndex(mode, MODE_INDEX);
     }
     previousLedOn = true;
   }

@@ -77,9 +77,25 @@ void zebra(int index)
 {
   for (int i = 0; i < PIXEL_COUNT; i++)
   {
-    if ((i + index) % 5 == 0)
+    if ((i + index) % 7 == 0)
     {
       strip.setPixelColor(i, wheel(index % 360));
+    }
+    else
+    {
+      strip.setPixelColor(i, 0);
+    }
+  }
+  strip.show();
+}
+
+void zebraRainbow(int index)
+{
+  for (int i = 0; i < PIXEL_COUNT; i++)
+  {
+    if ((i + index) % 7 == 0)
+    {
+      strip.setPixelColor(i, wheel((i + index) % 360));
     }
     else
     {
@@ -120,7 +136,7 @@ void sparkle(int index)
   strip.show();
 }
 
-void lowPower(int index, float battery)
+void charging(int index, float battery)
 {
   int step = 20;
   int bat = int(battery / step);
