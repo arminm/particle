@@ -136,6 +136,34 @@ void sparkle(int index)
   strip.show();
 }
 
+int bounceDirection = 1;
+int bounceSize = 10;
+void bounce(int index)
+{
+  for (int i = 0; i < PIXEL_COUNT; i++)
+  {
+    int modIndex = index % PIXEL_COUNT;
+    int j = modIndex / 2;
+    if (modIndex == 0)
+    {
+      bounceDirection = bounceDirection * -1;
+    }
+    if (bounceDirection == -1)
+    {
+      j = (PIXEL_COUNT - modIndex) / 2;
+    }
+    if ((i > j && i < j + bounceSize) || (i > PIXEL_COUNT - j && i < PIXEL_COUNT - j + bounceSize))
+    {
+      strip.setPixelColor(i, wheel((i + index) % 360));
+    }
+    else
+    {
+      strip.setPixelColor(i, strip.Color(50, 0, 0));
+    }
+  }
+  strip.show();
+}
+
 void charging(int index, float battery)
 {
   int step = 20;

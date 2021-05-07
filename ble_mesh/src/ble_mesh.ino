@@ -429,7 +429,6 @@ bool previousLedOn = true;
 void loop()
 {
   delay(DELAY_MS);
-  Log.info("MODE_INDEX: %d", MODE_INDEX);
   if (millis() < (startTime + 1000))
   {
     return; // not ready yet
@@ -448,7 +447,7 @@ void loop()
   if (AUTO_MODE)
   {
     static unsigned int offset = 2;
-    static unsigned int modes = 5;
+    static unsigned int modes = 6;
     static unsigned int delay = 30000; // 30 seconds
     mode = (((millis() - startTime) / delay) % modes) + offset;
   }

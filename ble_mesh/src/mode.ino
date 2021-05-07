@@ -6,6 +6,7 @@ void zebra(int index);
 void zebraRainbow(int index);
 void charging(int index, float battery);
 void sparkle(int index);
+void bounce(int index);
 void turnStripOff();
 
 // Battery
@@ -45,6 +46,10 @@ void dispayModeAtIndex(int mode, int index)
         sparkle(index);
     }
     else if (mode == 7)
+    {
+        bounce(index);
+    }
+    else if (mode == 8)
     {
         dot(index);
     }
