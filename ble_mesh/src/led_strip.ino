@@ -28,7 +28,22 @@ void rainbow(int index)
 {
   for (int i = 0; i < PIXEL_COUNT; i++)
   {
-    strip.setPixelColor(i, wheel((i + index) & 255));
+    if (index < PIXEL_COUNT) // initial startup
+    {
+      int j = index / 2;
+      if (i < j || i > PIXEL_COUNT - j)
+      {
+        strip.setPixelColor(i, wheel((i + index) % 360));
+      }
+      else
+      {
+        strip.setPixelColor(i, strip.Color(0, 0, 0));
+      }
+    }
+    else
+    {
+      strip.setPixelColor(i, wheel((i + index) % 360));
+    }
   }
   strip.show();
 }
@@ -37,7 +52,7 @@ void simple(int index)
 {
   for (int i = 0; i < PIXEL_COUNT; i++)
   {
-    strip.setPixelColor(i, wheel(index & 255));
+    strip.setPixelColor(i, wheel(index % 360));
   }
   strip.show();
 }
@@ -48,7 +63,7 @@ void dot(int index)
   {
     if (i == index % PIXEL_COUNT)
     {
-      strip.setPixelColor(i, wheel(index & 255));
+      strip.setPixelColor(i, wheel(index % 360));
     }
     else
     {
@@ -64,7 +79,7 @@ void zebra(int index)
   {
     if ((i + index) % 5 == 0)
     {
-      strip.setPixelColor(i, wheel(index & 255));
+      strip.setPixelColor(i, wheel(index % 360));
     }
     else
     {
@@ -75,11 +90,11 @@ void zebra(int index)
 }
 
 int sparkles[PIXEL_COUNT] = {};
-int sparkleRatio = 20;
+int sparkleRatio = 40;
 
 void sparkle(int index)
 {
-  int decrements = 50;
+  int decrements = 100;
   for (int i = 0; i < PIXEL_COUNT; i++)
   {
     int brightness = sparkles[i];
@@ -129,22 +144,67 @@ void lowPower(int index, float battery)
   strip.show();
 }
 
-// Input a value 0 to 255 to get a color value.
-// The colours are a transition r - g - b - back to r.
-uint32_t wheel(byte WheelPos)
+// Input a value 0 to 360 to get a color value.
+// https://www.instructables.com/How-to-Make-Proper-Rainbow-and-Random-Colors-With-/
+uint32_t wheel(int angle)
 {
-  if (WheelPos < 85)
+  byte red, green, blue;
+
+  if (angle < 60)
   {
-    return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+    red = 255;
+    green = angle * 4.25;
+    blue = 0;
   }
-  else if (WheelPos < 170)
+  else if (angle < 120)
   {
-    WheelPos -= 85;
-    return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+    red = (120 - angle) * 4.25;
+    green = 255;
+    blue = 0;
+  }
+  else if (angle < 180)
+  {
+    red = 0;
+    green = 255;
+    blue = (angle - 120) * 4.25;
+  }
+  else if (angle < 240)
+  {
+    red = 0;
+    green = (240 - angle) * 4.25;
+    blue = 255;
+  }
+  else if (angle < 300)
+  {
+    red = (angle - 240) * 4.25;
+    green = 0;
+    blue = 255;
   }
   else
   {
-    WheelPos -= 170;
-    return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+    red = 255;
+    green = 0;
+    blue = round((360 - angle) * 4.25);
   }
+  return strip.Color(red, green, blue);
 }
+
+// // Input a value 0 to 255 to get a color value.
+// // The colours are a transition r - g - b - back to r.
+// uint32_t wheel(byte WheelPos)
+// {
+//   if (WheelPos < 85)
+//   {
+//     return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+//   }
+//   else if (WheelPos < 170)
+//   {
+//     WheelPos -= 85;
+//     return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+//   }
+//   else
+//   {
+//     WheelPos -= 170;
+//     return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+//   }
+// }
