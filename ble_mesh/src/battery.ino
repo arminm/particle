@@ -40,3 +40,12 @@ void checkBattery(BleCharacteristic batteryLevelCharacteristic)
         batteryLevelCharacteristic.setValue(readBattery());
     }
 }
+
+bool isCharging()
+{
+    bool hasUsbPower = digitalRead(PWR);
+    bool isCharging = (hasUsbPower && !digitalRead(CHG));
+    Log.info("PWR: %d, CHG: %d", digitalRead(PWR), digitalRead(CHG));
+    // bool onBatteryPower = (!hasUsbPower || !isCharging);
+    return isCharging;
+}

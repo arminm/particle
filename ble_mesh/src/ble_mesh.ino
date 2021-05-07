@@ -23,12 +23,12 @@ PersistedObject props;
 
 // declare other functions
 void dispayModeAtIndex(int mode, int index);
-uint32_t wheel(byte WheelPos);
 unsigned int hexToUnsignedInt(String hex);
 void checkBattery(BleCharacteristic batteryLevelCharacteristic);
 void setBrightness(int b);
 float readBattery();
 int lowPowerMode();
+bool isCharging();
 
 // UUID for battery service
 BleUuid batteryServiceUUID = BleUuid(0x180F);
@@ -50,9 +50,9 @@ const char *meshOn = "52FBD5CK-8C9D-4C84-B3F7-E674BB439429";
 const char *caneName = "52FBD5CL-8C9D-4C84-B3F7-E674BB439430";
 
 bool IS_LEADER = false;
-int MODE = 1;
-int DELAY_MS = 100;
-int MODE_INDEX = 0;
+int MODE = 2; // rainbow
+int DELAY_MS = 25;
+unsigned int MODE_INDEX = 0;
 int RANK = 0;
 int BRIGHTNESS = 10;
 int LED_ON = 1;
@@ -153,7 +153,6 @@ void publishCommands(bool force = false)
 
 void setRGBColor(int b)
 {
-  // RGB.color(wheel(MODE_INDEX & 255));
   if (IS_LEADER)
   {
     RGB.color(b & 255, 0, 0);
@@ -230,6 +229,7 @@ static void onDataReceived(const uint8_t *data, size_t len, const BlePeerDevice 
   if (context == mode)
   {
     MODE = data[0];
+    MODE_INDEX = 0;
   }
   else if (context == delayMs)
   {
@@ -369,6 +369,9 @@ void setup()
   startTime = millis();
   lastDecidedOnLeader = millis();
 
+  pinMode(PWR, INPUT);
+  pinMode(CHG, INPUT);
+
   RGB.control(true);
 
   // load persisted props
@@ -436,7 +439,14 @@ void loop()
   setMesh(MESH_ON);
   if (LED_ON == 1)
   {
-    dispayModeAtIndex(MODE, MODE_INDEX);
+    if (isCharging())
+    {
+      dispayModeAtIndex(lowPowerMode(), MODE_INDEX);
+    }
+    else
+    {
+      dispayModeAtIndex(MODE, MODE_INDEX);
+    }
     previousLedOn = true;
   }
   else
