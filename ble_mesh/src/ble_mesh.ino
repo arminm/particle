@@ -11,6 +11,20 @@ SYSTEM_THREAD(ENABLED);
 SYSTEM_MODE(MANUAL);
 SerialLogHandler logHandler;
 
+int MODE = 2; // rainbow
+bool AUTO_MODE = true;
+int DELAY_MS = 20;
+unsigned int MODE_INDEX = 0;
+int BRIGHTNESS = 10;
+int WIFI_ON = 0;
+bool BLE_ON = true;
+uint16_t BLE_ADVERTISING_TIMEOUT = 5 * 60 * 1000 / 10; // unit is 10ms
+system_tick_t BLE_TIMEOUT_MS = BLE_ADVERTISING_TIMEOUT * 10;
+char WIFI_SSID[50];
+char WIFI_PASS[50];
+
+system_tick_t startTime = 0;
+
 // Persisted Object
 const unsigned int MAX_NAME_LEN = 72;
 struct PersistedObject
@@ -46,20 +60,6 @@ const char *wifiOn = "52FBD5CH-8C9D-4C84-B3F7-E674BB439426";
 const char *wifiSSID = "52FBD5CI-8C9D-4C84-B3F7-E674BB439427";
 const char *wifiPassword = "52FBD5CJ-8C9D-4C84-B3F7-E674BB439428";
 const char *caneName = "52FBD5CL-8C9D-4C84-B3F7-E674BB439430";
-
-int MODE = 2; // rainbow
-bool AUTO_MODE = true;
-int DELAY_MS = 20;
-unsigned int MODE_INDEX = 0;
-int BRIGHTNESS = 10;
-int WIFI_ON = 0;
-bool BLE_ON = true;
-uint16_t BLE_ADVERTISING_TIMEOUT = 5 * 60 * 1000 / 10; // unit is 10ms
-system_tick_t BLE_TIMEOUT_MS = BLE_ADVERTISING_TIMEOUT * 10;
-char WIFI_SSID[50];
-char WIFI_PASS[50];
-
-system_tick_t startTime = 0;
 
 // Set the BLE service
 BleUuid bleService(serviceUuid);

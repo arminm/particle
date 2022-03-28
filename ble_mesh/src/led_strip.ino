@@ -3,7 +3,7 @@
 
 // IMPORTANT: Set pixel COUNT, PIN and TYPE
 // cane has 150, 1m strips have 144
-#define PIXEL_COUNT 150
+#define PIXEL_COUNT 144
 #define PIXEL_PIN D13
 #define PIXEL_TYPE WS2812B
 
@@ -140,21 +140,25 @@ int bounceDirection = 1;
 int bounceSize = 10;
 void bounce(int index)
 {
+  int modIndex = index % (PIXEL_COUNT / 2);
+  int j = modIndex;
+  if (modIndex == 0)
+  {
+    bounceDirection = bounceDirection * -1;
+  }
+  if (bounceDirection == -1)
+  {
+    j = (PIXEL_COUNT / 2 - modIndex);
+  }
   for (int i = 0; i < PIXEL_COUNT; i++)
   {
-    int modIndex = index % PIXEL_COUNT;
-    int j = modIndex / 2;
-    if (modIndex == 0)
-    {
-      bounceDirection = bounceDirection * -1;
-    }
-    if (bounceDirection == -1)
-    {
-      j = (PIXEL_COUNT - modIndex) / 2;
-    }
-    if ((i > j && i < j + bounceSize) || (i > PIXEL_COUNT - j && i < PIXEL_COUNT - j + bounceSize))
+    if (i >= j && i < j + bounceSize)
     {
       strip.setPixelColor(i, wheel((i + index) % 360));
+    }
+    else if (i >= PIXEL_COUNT - j && i < PIXEL_COUNT - j + bounceSize)
+    {
+      strip.setPixelColor(i, wheel((PIXEL_COUNT - i + index) % 360));
     }
     else
     {
