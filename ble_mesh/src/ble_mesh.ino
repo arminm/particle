@@ -13,7 +13,7 @@ SerialLogHandler logHandler;
 
 int MODE = 2; // rainbow
 bool AUTO_MODE = true;
-int DELAY_MS = 20;
+int DELAY_MS = 30;
 unsigned int MODE_INDEX = 0;
 int BRIGHTNESS = 10;
 int WIFI_ON = 0;
@@ -229,7 +229,7 @@ void loop()
   if (AUTO_MODE)
   {
     static unsigned int offset = 2;
-    static unsigned int modes = 6;
+    static unsigned int modes = 7;
     static unsigned int delay = 30000; // 30 seconds
     mode = (((millis() - startTime) / delay) % modes) + offset;
   }

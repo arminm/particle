@@ -28,7 +28,7 @@ void rainbow(int index)
 {
   for (int i = 0; i < PIXEL_COUNT; i++)
   {
-    if (index < PIXEL_COUNT) // initial startup
+    if (index < PIXEL_COUNT) // grow
     {
       int j = index / 2;
       if (i < j || i > PIXEL_COUNT - j)
@@ -40,9 +40,33 @@ void rainbow(int index)
         strip.setPixelColor(i, strip.Color(0, 0, 0));
       }
     }
-    else
+    else // rainbow!
     {
       strip.setPixelColor(i, wheel((i + index) % 360));
+    }
+  }
+  strip.show();
+}
+
+const int dropLength = 5;
+const int dropSpace = 20;
+void rain(int index)
+{
+  // const int modIndex = index % PIXEL_COUNT;
+  for (int i = 0; i < PIXEL_COUNT; i++)
+  {
+    const int j = (index - i) % dropSpace;
+    if (j >= 0 && j < dropLength)
+    {
+      // int j = index / 2;
+      // if (i < j || i > PIXEL_COUNT - j)
+      // {
+      strip.setPixelColor(i, wheel(((index - i) % 180) * 2));
+      // }
+    }
+    else
+    {
+      strip.setPixelColor(i, strip.Color(0, 0, 0));
     }
   }
   strip.show();
@@ -162,7 +186,7 @@ void bounce(int index)
     }
     else
     {
-      strip.setPixelColor(i, strip.Color(50, 0, 0));
+      strip.setPixelColor(i, strip.Color(0, 0, 0));
     }
   }
   strip.show();

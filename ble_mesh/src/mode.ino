@@ -1,5 +1,6 @@
 // LED strip
 void rainbow(int index);
+void rain(int index);
 void simple(int index);
 void dot(int index);
 void zebra(int index);
@@ -31,25 +32,29 @@ void dispayModeAtIndex(int mode, int index)
     }
     else if (mode == 3)
     {
-        simple(index);
+        rain(index);
     }
     else if (mode == 4)
     {
-        zebra(index);
+        simple(index);
     }
     else if (mode == 5)
     {
-        zebraRainbow(index);
+        zebra(index);
     }
     else if (mode == 6)
     {
-        sparkle(index);
+        zebraRainbow(index);
     }
     else if (mode == 7)
     {
-        bounce(index);
+        sparkle(index);
     }
     else if (mode == 8)
+    {
+        bounce(index);
+    }
+    else if (mode == 9)
     {
         dot(index);
     }
